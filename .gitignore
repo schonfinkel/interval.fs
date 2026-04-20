@@ -455,8 +455,5 @@ $RECYCLE.BIN/
 
 # Configuration
 out
+output
 *env*
-*.db
-database/*
-!database/.gitkeep
-

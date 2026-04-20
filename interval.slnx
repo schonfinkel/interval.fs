@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Interval/Interval.fsproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Interval.Tests/Interval.Tests.fsproj" />
+  </Folder>
+</Solution>

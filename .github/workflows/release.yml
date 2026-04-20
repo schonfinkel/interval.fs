@@ -1,5 +1,4 @@
-name: Create Release
-
+name: "[Release] Git"
 on:
   push:
     tags:
@@ -13,10 +12,8 @@ jobs:
       contents: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          token: ${{ github.token }}
+        uses: actions/checkout@v6
       - name: Create Release
-        run: gh release create ${{ github.ref }} --generate-notes
+        run: gh release create ${{ github.ref_name }} --generate-notes --latest
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}

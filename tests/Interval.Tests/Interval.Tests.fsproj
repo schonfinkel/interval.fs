@@ -1,0 +1,36 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <IsPublishable>false</IsPublishable>
+        <IsPackable>false</IsPackable>
+        <GenerateProgramFile>false</GenerateProgramFile>
+        <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Expecto" Version="10.2.3" />
+        <PackageReference Include="Expecto.FsCheck" Version="10.2.3" />
+        <PackageReference Include="YoloDev.Expecto.TestSdk" Version="0.15.6" />
+        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.4.0" />
+        <PackageReference Include="coverlet.collector" Version="6.0.2">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+    </ItemGroup>
+
+    <ItemGroup>
+        <Compile Include="Shared.fs" />
+        <Compile Include="TryCreate.fs" />
+        <Compile Include="Intersection.fs" />
+        <Compile Include="Union.fs" />
+        <Compile Include="Relate.fs" />
+        <Compile Include="Properties.fs" />
+        <Compile Include="Program.fs" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\..\src\Interval\Interval.fsproj" />
+    </ItemGroup>
+
+</Project>

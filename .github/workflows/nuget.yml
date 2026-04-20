@@ -1,4 +1,4 @@
-name: Nuget
+name: "[Release] Nuget"
 
 on:
   push:
@@ -12,12 +12,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          token: ${{ github.token }}
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 6.0.x
+        uses: actions/checkout@v6
 
       - name: Install Nix
         uses: cachix/install-nix-action@v24
@@ -29,11 +24,9 @@ jobs:
       - name: Install Nix Cache
         uses: DeterminateSystems/magic-nix-cache-action@main
 
-      - name: Test before releasing
-        run: nix develop .#ci --impure -c just test
       - name: Pack release
-        run: nix develop .#ci --impure -c just pack
+        run: nix develop .#ci --impure -c make pack
       - name: Publish the package to nuget.org
-        run: nix develop .#ci --impure -c just release
+        run: nix develop .#ci --impure -c make release
         env:
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
