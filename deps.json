@@ -1,13 +1,8 @@
 [
   {
-    "pname": "coverlet.collector",
+    "pname": "coverlet.msbuild",
     "version": "6.0.2",
-    "hash": "sha256-LdSQUrOmjFug47LjtqgtN2MM6BcfG0HR5iL+prVHlDo="
-  },
-  {
-    "pname": "dotnet-coverage",
-    "version": "18.6.2",
-    "hash": "sha256-8tkitvWVAvjfzTioFLuKBqOL2sv+3tDff3Ur5YryFAo="
+    "hash": "sha256-Ptj/f41dJ1T+DYvJ8bUo7Bnjp5R+xFOKGVhg3GA+f/A="
   },
   {
     "pname": "Expecto",

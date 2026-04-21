@@ -6,7 +6,7 @@
 
 
 [![Build](https://github.com/schonfinkel/interval.fs/actions/workflows/build.yml/badge.svg)](https://github.com/schonfinkel/interval.fs/actions/workflows/build.yml)
-![Coverage](https://raw.githubusercontent.com/schonfinkel/interval.fs/gh-pages/coverage.svg)
+![Coverage](https://schonfinkel.github.io/interval.fs/coverage.svg)
 
 A small F# implementation of [Allen's Interval Algebra](https://cse.unl.edu/~choueiry/Documents/Allen-CACM1983.pdf) for .NET.
 

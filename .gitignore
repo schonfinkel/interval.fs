@@ -148,6 +148,10 @@ _TeamCity*
 coverage*.json
 coverage*.xml
 coverage*.info
+coverage/
+
+# Local dotnet tools (e.g. ReportGenerator for `make coverage`)
+.tools/
 
 # Visual Studio code coverage results
 *.coverage

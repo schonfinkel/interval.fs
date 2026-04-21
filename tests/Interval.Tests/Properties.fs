@@ -57,7 +57,10 @@ let private boundaryProperties =
           testPropertyWithConfig config "Included > Excluded at the same value" (fun (v: int) ->
               { Value = v; Kind = Included } > { Value = v; Kind = Excluded })
 
-          testPropertyWithConfig config "compare b b = 0" (fun (b: Boundary.Point<int>) -> compare b b = 0) ]
+          testPropertyWithConfig config "compare b b = 0" (fun (b: Boundary.Point<int>) -> compare b b = 0)
+
+          testPropertyWithConfig config "Kind (+) is associative" (fun (a: Kind) (b: Kind) (c: Kind) ->
+              (a + b) + c = a + (b + c)) ]
 
 // Checks if BoundedInterval.TryCreate behaves properly
 let private tryCreateProperties =
@@ -115,13 +118,8 @@ let private relateProperties =
           testPropertyWithConfig
               config
               "relate a b = invert (relate b a) for Singleton intervals"
-              (fun (a: Interval<int>) (b: Interval<int>) ->
-                  let isS =
-                      function
-                      | Singleton _ -> true
-                      | _ -> false
-
-                  (isS a && isS b) ==> lazy (relate a b = invert (relate b a)))
+              (fun (a: BoundedInterval<int>) (b: BoundedInterval<int>) ->
+                  relate (Singleton a) (Singleton b) = invert (relate (Singleton b) (Singleton a)))
 
           testPropertyWithConfig config "∅ is Contained by any non-empty interval" (fun (i: Interval<int>) ->
               isNotEmpty i ==> lazy (relate i Empty = Contains))
