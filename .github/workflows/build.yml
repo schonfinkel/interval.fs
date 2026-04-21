@@ -37,13 +37,14 @@ jobs:
       run: |
         nix develop .#ci --impure -c \
           dotnet test \
-            --collect:"XPlat Code Coverage" \
-            --results-directory ./coverage
+            /p:CollectCoverage=true \
+            /p:CoverletOutputFormat=cobertura \
+            /p:CoverletOutput=${GITHUB_WORKSPACE}/coverage/
 
     - name: Code coverage summary
       uses: irongut/CodeCoverageSummary@v1.3.0
       with:
-        filename: coverage/**/coverage.cobertura.xml
+        filename: coverage/coverage.cobertura.xml
         badge: true
         format: markdown
         output: both
@@ -55,7 +56,7 @@ jobs:
     - name: Extract coverage percentage and color
       id: coverage
       run: |
-        line_rate=$(grep -m1 -oP 'line-rate="\K[0-9.]+' coverage/*/coverage.cobertura.xml)
+        line_rate=$(grep -m1 -oP 'line-rate="\K[0-9.]+' coverage/coverage.cobertura.xml)
         percent=$(awk -v r="$line_rate" 'BEGIN { printf "%.1f", r * 100 }')
         color=$(awk -v p="$percent" 'BEGIN {
           if (p < 60) print "red"

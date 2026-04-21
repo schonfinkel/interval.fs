@@ -42,7 +42,7 @@
         }:
         let
           dotnet = pkgs.dotnet-sdk_10;
-          version = "1.0.0";
+          version = "1.0.1";
         in
         {
           # This sets `pkgs` to a nixpkgs with allowUnfree option set.
@@ -70,22 +70,21 @@
             programs.nixfmt.enable = true;
           };
 
-          devenv.shells.ci = {
-            # nix develop --impure .#ci
-            # Minimal shell for CI: bare essentials to build and run tests.
-            packages = [
-              pkgs.gnumake
-            ];
+          # Native Nix devShells replacement
+          devShells = {
+            # nix develop .#ci
+            ci = pkgs.mkShell {
+              name = "ci-shell";
+              buildInputs = [
+                dotnet
+                pkgs.gnumake
+              ];
 
-            languages.dotnet = {
-              enable = true;
-              package = dotnet;
+              shellHook = ''
+                echo "Entering CI shell..."
+                dotnet --info
+              '';
             };
-
-            enterShell = ''
-              echo "Entering CI shell..."
-              dotnet --info
-            '';
           };
 
           devenv.shells.default = {

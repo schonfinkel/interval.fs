@@ -9,6 +9,7 @@ let tests =
         [ Interval.Tests.TryCreate.unitTests
           Interval.Tests.Intersection.unitTests
           Interval.Tests.Union.unitTests
+          Interval.Tests.Merge.unitTests
           Interval.Tests.Relate.unitTests
           Interval.Tests.Properties.propertyTests ]
 

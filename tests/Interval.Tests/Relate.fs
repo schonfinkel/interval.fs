@@ -5,6 +5,7 @@ open Expecto.Flip
 
 open Interval.Core
 open Interval.Functions
+open Interval.Predicates
 open Interval.Builders
 
 // Each case pins down one of Allen's 13 interval relations with a canonical
@@ -15,11 +16,13 @@ let private checkEquals () =
     let a = singleton (inc 1) (inc 5)
     let b = singleton (inc 1) (inc 5)
     relate a b |> Expect.equal "Same intervals relate as Equals" Equals
+    isEqual a b |> Expect.isTrue "Also check if the Predicate works"
 
 let private checkBefore () =
     let a = singleton (inc 1) (inc 3)
     let b = singleton (inc 5) (inc 7)
     relate a b |> Expect.equal "a ends strictly before b starts" Before
+    precedes a b |> Expect.isTrue "Also check if the Predicate works"
 
 let private checkAfter () =
     let a = singleton (inc 5) (inc 7)
@@ -50,6 +53,7 @@ let private checkStarts () =
     let a = singleton (inc 1) (inc 3)
     let b = singleton (inc 1) (inc 5)
     relate a b |> Expect.equal "a shares start with b, ends earlier" Starts
+    starts a b |> Expect.isTrue "Also check if the Predicate works"
 
 let private checkStartedBy () =
     // [1, 5]
@@ -58,16 +62,19 @@ let private checkStartedBy () =
     let b = singleton (inc 1) (inc 3)
     // [1, 5] is StartedBy [1, 3]
     relate a b |> Expect.equal "b shares start with a, ends earlier" StartedBy
+    startedBy a b |> Expect.isTrue "Also check if the Predicate works"
 
 let private checkFinishes () =
     let a = singleton (inc 3) (inc 5)
     let b = singleton (inc 1) (inc 5)
     relate a b |> Expect.equal "a shares end with b, starts later" Finishes
+    finishes a b |> Expect.isTrue "Also check if the Predicate works"
 
 let private checkFinishedBy () =
     let a = singleton (inc 1) (inc 5)
     let b = singleton (inc 3) (inc 5)
     relate a b |> Expect.equal "b shares end with a, starts later" FinishedBy
+    finishedBy a b |> Expect.isTrue "Also check if the Predicate works"
 
 let private checkDuring () =
     let a = singleton (inc 3) (inc 5)
