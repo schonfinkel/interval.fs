@@ -2,121 +2,115 @@
   description = "F# Development Environment";
 
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:nixos/nixpkgs?ref=nixos-unstable";
+
     devenv = {
       url = "github:cachix/devenv";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    flake-parts = {
+      url = "github:hercules-ci/flake-parts";
+    };
+
+    treefmt-nix.url = "github:numtide/treefmt-nix";
   };
 
   outputs =
     inputs@{
       self,
       devenv,
+      flake-parts,
       nixpkgs,
       ...
     }:
-    let
-      # System types to support.
-      supportedSystems = [
-        "x86_64-linux"
-        "x86_64-darwin"
-        "aarch64-darwin"
+    flake-parts.lib.mkFlake { inherit inputs; } {
+      imports = [
+        inputs.devenv.flakeModule
+        inputs.treefmt-nix.flakeModule
       ];
+      systems = nixpkgs.lib.systems.flakeExposed;
 
-      # Helper function to generate an attrset '{ x86_64-linux = f "x86_64-linux"; ... }'.
-      forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
-
-      # Nixpkgs instantiated for supported system types.
-      nixpkgsFor = forAllSystems (
-        system:
-        import nixpkgs {
-          inherit system;
-        }
-      );
-    in
-    {
-      packages = forAllSystems (
-        system:
+      perSystem =
+        {
+          config,
+          self',
+          inputs',
+          pkgs,
+          system,
+          ...
+        }:
         let
-          pkgs = nixpkgsFor."${system}";
-          version = "0.1.0";
+          dotnet = pkgs.dotnet-sdk_10;
+          version = "1.0.0";
         in
         {
-          # `nix build`
-          default = pkgs.buildDotnetModule {
-            pname = "interval.fs";
-            version = version;
-            src = ./.;
-            projectFile = "Interval/Interval.fsproj";
-            nugetDeps = ./deps.nix;
-
-            dotnet-sdk =
-              with pkgs.dotnetCorePackages;
-              combinePackages [
-                sdk_6_0
-                sdk_7_0
-                sdk_8_0
-              ];
-            dotnet-runtime = pkgs.dotnetCorePackages.sdk_8_0;
-          };
-        }
-      );
-
-      devShells = forAllSystems (
-        system:
-        let
-          pkgs = nixpkgsFor."${system}";
-          dotnet =
-            with pkgs.dotnetCorePackages;
-            combinePackages [
-              sdk_8_0
-            ];
-        in
-        {
-          # `nix develop .#ci`
-          # reduce the number of packages to the bare minimum needed for CI
-          ci = pkgs.mkShell {
-            buildInputs = with pkgs; [
-              git
-              just
-              dotnet
-            ];
+          # This sets `pkgs` to a nixpkgs with allowUnfree option set.
+          _module.args.pkgs = import nixpkgs {
+            inherit system;
+            config.allowUnfree = true;
           };
 
-          # `nix develop --impure`
-          default = devenv.lib.mkShell {
-            inherit inputs pkgs;
-            modules = [
-              (
-                { pkgs, lib, ... }:
-                {
-                  packages = with pkgs; [
-                    bash
-                    just
-
-                    # for dotnet
-                    netcoredbg
-                    fsautocomplete
-                    fantomas
-                  ];
-
-                  languages.dotnet = {
-                    enable = true;
-                    package = dotnet;
-                  };
-
-                  # looks for the .env by default additionaly, there is .filename
-                  # if an arbitrary file is desired
-                  dotenv.enable = true;
-                }
-              )
-            ];
+          packages = {
+            # nix build
+            default = pkgs.buildDotnetModule {
+              inherit version;
+              pname = "interval.fs";
+              src = ./.;
+              projectFile = "src/Interval/Interval.fsproj";
+              nugetDeps = ./deps.json;
+              dotnet-sdk = dotnet;
+            };
           };
-        }
-      );
 
-      # nix fmt
-      formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.nixfmt-rfc-style);
+          # nix fmt + nix flake check (auto-wired by flakeModule)
+          treefmt = {
+            projectRootFile = "flake.nix";
+            programs.fantomas.enable = true;
+            programs.nixfmt.enable = true;
+          };
+
+          devenv.shells.ci = {
+            # nix develop --impure .#ci
+            # Minimal shell for CI: bare essentials to build and run tests.
+            packages = [
+              pkgs.gnumake
+            ];
+
+            languages.dotnet = {
+              enable = true;
+              package = dotnet;
+            };
+
+            enterShell = ''
+              echo "Entering CI shell..."
+              dotnet --info
+            '';
+          };
+
+          devenv.shells.default = {
+            packages =
+              with pkgs;
+              [
+                bash
+                gnumake
+
+                # for dotnet
+                netcoredbg
+                fsautocomplete
+                fantomas
+              ]
+              ++ [ config.packages.default ];
+
+            languages.dotnet = {
+              enable = true;
+              package = dotnet;
+            };
+
+            enterShell = ''
+              echo "Starting Development Environment..."
+            '';
+          };
+        };
     };
 }
