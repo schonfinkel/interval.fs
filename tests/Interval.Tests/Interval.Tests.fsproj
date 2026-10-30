@@ -9,11 +9,13 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Expecto" Version="10.2.3" />
-        <PackageReference Include="Expecto.FsCheck" Version="10.2.3" />
-        <PackageReference Include="YoloDev.Expecto.TestSdk" Version="0.15.6" />
-        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.4.0" />
-        <PackageReference Include="coverlet.msbuild" Version="6.0.2">
+        <PackageReference Include="Expecto" Version="11.1.1" />
+        <PackageReference Include="Expecto.FsCheck" Version="11.1.1" />
+        <PackageReference Include="FsCheck" Version="3.6.0" />
+        <!-- NU1608: the adapter declares Expecto < 10 but runs correctly against Expecto 11. -->
+        <PackageReference Include="YoloDev.Expecto.TestSdk" Version="1.0.0" NoWarn="NU1608" />
+        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
+        <PackageReference Include="coverlet.msbuild" Version="10.1.0">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>

@@ -2,6 +2,7 @@ module Interval.Tests.Properties
 
 open Expecto
 open FsCheck
+open FsCheck.FSharp
 
 open Interval.Core
 open Interval.Core.Boundary

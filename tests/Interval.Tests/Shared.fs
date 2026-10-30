@@ -2,6 +2,7 @@ namespace Interval.Tests
 
 module Generators =
     open FsCheck
+    open FsCheck.FSharp
     open Interval.Builders
     open Interval.Core
     open Interval.Core.Boundary
@@ -15,7 +16,7 @@ module Generators =
     let generateBoundary () =
         gen {
             let! k = generateBoundaryKind ()
-            let! n = Arb.generate<int>
+            let! n = ArbMap.defaults |> ArbMap.generate<int>
             let boundary = { Value = n; Kind = k }
             return boundary
         }
