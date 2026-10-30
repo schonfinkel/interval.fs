@@ -160,6 +160,89 @@ module internal Sweep =
         elif not (Endpoint.encloses point piece.UpperBound) then 1
         else 0
 
+    /// The union of two canonical piece arrays, in linear time.
+    let union (left: BoundedInterval<'T> array) (right: BoundedInterval<'T> array) =
+        let merged = Array.zeroCreate (left.Length + right.Length)
+
+        let rec fill i j =
+            let leftIsNext =
+                i < left.Length
+                && (j >= right.Length
+                    || Endpoint.compareLower left[i].LowerBound right[j].LowerBound <= 0)
+
+            if leftIsNext then
+                merged[i + j] <- left[i]
+                fill (i + 1) j
+            elif j < right.Length then
+                merged[i + j] <- right[j]
+                fill i (j + 1)
+
+        fill 0 0
+        coalesce merged
+
+    /// The intersection of two canonical piece arrays, in linear time.
+    let intersection (left: BoundedInterval<'T> array) (right: BoundedInterval<'T> array) =
+        let pieces = ResizeArray()
+
+        let rec scan i j =
+            if i < left.Length && j < right.Length then
+                let lower =
+                    if Endpoint.compareLower left[i].LowerBound right[j].LowerBound >= 0 then
+                        left[i].LowerBound
+                    else
+                        right[j].LowerBound
+
+                let leftEndsFirst =
+                    Endpoint.compareUpper left[i].UpperBound right[j].UpperBound <= 0
+
+                let upper =
+                    if leftEndsFirst then
+                        left[i].UpperBound
+                    else
+                        right[j].UpperBound
+
+                if Endpoint.encloses lower upper then
+                    pieces.Add
+                        { LowerBound = lower
+                          UpperBound = upper }
+
+                if leftEndsFirst then scan (i + 1) j else scan i (j + 1)
+
+        scan 0 0
+        pieces.ToArray()
+
+    /// The values in the left pieces and not in the right ones, in linear time.
+    let difference (left: BoundedInterval<'T> array) (right: BoundedInterval<'T> array) =
+        let pieces = ResizeArray()
+
+        let addIfNonEmpty lower upper =
+            if Endpoint.encloses lower upper then
+                pieces.Add
+                    { LowerBound = lower
+                      UpperBound = upper }
+
+        let rec firstReaching (piece: BoundedInterval<'T>) j =
+            if j < right.Length && not (Endpoint.encloses piece.LowerBound right[j].UpperBound) then
+                firstReaching piece (j + 1)
+            else
+                j
+
+        let rec cut (piece: BoundedInterval<'T>) lower j =
+            if j < right.Length && Endpoint.encloses right[j].LowerBound piece.UpperBound then
+                addIfNonEmpty lower (Endpoint.flip right[j].LowerBound)
+                cut piece (Endpoint.flip right[j].UpperBound) (j + 1)
+            else
+                addIfNonEmpty lower piece.UpperBound
+
+        let rec walk i j =
+            if i < left.Length then
+                let start = firstReaching left[i] j
+                cut left[i] left[i].LowerBound start
+                walk (i + 1) start
+
+        walk 0 0
+        pieces.ToArray()
+
 // SWEEP-OPERATIONS
 
 /// Any finite union of bounded intervals, held in canonical form: ascending,
