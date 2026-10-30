@@ -2,9 +2,9 @@ namespace Interval
 
 module Builders =
     open Interval.Core
-    open Interval.Core.Boundary
 
-    let inc v = { Value = v; Kind = Included }
-    let exc v = { Value = v; Kind = Excluded }
-    let bounded (s: Boundary.Point<'T>) (e: Boundary.Point<'T>) : BoundedInterval<'T> = { Start = s; End = e }
-    let singleton (s: Boundary.Point<'T>) (e: Boundary.Point<'T>) : Interval<'T> = Singleton(bounded s e)
+    /// An endpoint whose value belongs to the interval.
+    let inc value = { Value = value; Kind = Included }
+
+    /// An endpoint whose value does not belong to the interval.
+    let exc value = { Value = value; Kind = Excluded }
