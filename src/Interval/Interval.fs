@@ -43,9 +43,17 @@ module Interval =
     /// The values in both intervals.
     let intersection (Pieces left: Interval<'T>) (Pieces right: Interval<'T>) = Pieces(Sweep.intersection left right)
 
+    /// Below this many inputs a parallel reduction does not beat a fold (measured).
+    [<Literal>]
+    let private ParallelIntersectionThreshold = 256
+
     /// The values in every interval. Takes a first interval because intervals
     /// have no universal element for an empty collection to reduce to.
-    let intersections (first: Interval<'T>) (rest: Interval<'T> array) = Array.fold intersection first rest
+    let intersections (first: Interval<'T>) (rest: Interval<'T> array) =
+        if rest.Length + 1 >= ParallelIntersectionThreshold then
+            Array.append [| first |] rest |> Array.Parallel.reduce intersection
+        else
+            Array.fold intersection first rest
 
     /// The values in the first interval and not in the second.
     let difference (Pieces left: Interval<'T>) (Pieces right: Interval<'T>) = Pieces(Sweep.difference left right)

@@ -1,6 +1,7 @@
 namespace Interval.Core
 
 open System
+open System.Collections.Generic
 
 /// Why a pair of endpoints cannot form a bounded interval.
 type IntervalError =
@@ -31,23 +32,27 @@ type Point<'T when 'T: comparison> = { Value: 'T; Kind: Kind }
 
 /// Endpoint orderings. Lower and upper bounds break ties in opposite directions.
 module internal Endpoint =
+    /// F# ordering of values, without the boxing of generic comparison.
+    let order (a: 'T) (b: 'T) =
+        LanguagePrimitives.FastGenericComparer<'T>.Compare(a, b)
+
     /// Orders lower bounds: at equal values the included bound starts earlier.
     let compareLower (a: Point<'T>) (b: Point<'T>) =
-        match compare a.Value b.Value, a.Kind, b.Kind with
+        match order a.Value b.Value, a.Kind, b.Kind with
         | 0, Included, Excluded -> -1
         | 0, Excluded, Included -> 1
         | order, _, _ -> order
 
     /// Orders upper bounds: at equal values the excluded bound ends earlier.
     let compareUpper (a: Point<'T>) (b: Point<'T>) =
-        match compare a.Value b.Value, a.Kind, b.Kind with
+        match order a.Value b.Value, a.Kind, b.Kind with
         | 0, Excluded, Included -> -1
         | 0, Included, Excluded -> 1
         | order, _, _ -> order
 
     /// Whether a lower and an upper bound enclose at least one value.
     let encloses (lower: Point<'T>) (upper: Point<'T>) =
-        match compare lower.Value upper.Value, lower.Kind, upper.Kind with
+        match order lower.Value upper.Value, lower.Kind, upper.Kind with
         | 0, Included, Included -> true
         | order, _, _ -> order < 0
 
@@ -115,7 +120,7 @@ type BoundedInterval<'T when 'T: comparison> =
             Ok
                 { LowerBound = lower
                   UpperBound = upper }
-        elif compare lower.Value upper.Value > 0 then
+        elif Endpoint.order lower.Value upper.Value > 0 then
             Error InvertedBounds
         else
             Error EmptyBounds
@@ -124,7 +129,9 @@ type BoundedInterval<'T when 'T: comparison> =
 module internal Sweep =
     /// Whether two intervals form one range, given that the first starts no later.
     let connected (first: BoundedInterval<'T>) (second: BoundedInterval<'T>) =
-        match compare first.UpperBound.Value second.LowerBound.Value, first.UpperBound.Kind, second.LowerBound.Kind with
+        match
+            Endpoint.order first.UpperBound.Value second.LowerBound.Value, first.UpperBound.Kind, second.LowerBound.Kind
+        with
         | 0, Excluded, Excluded -> false
         | order, _, _ -> order >= 0
 
@@ -145,10 +152,24 @@ module internal Sweep =
 
         pieces.ToArray()
 
+    let private compareBounds (a: BoundedInterval<'T>) (b: BoundedInterval<'T>) =
+        match Endpoint.compareLower a.LowerBound b.LowerBound with
+        | 0 -> Endpoint.compareUpper a.UpperBound b.UpperBound
+        | order -> order
+
     /// The canonical pieces of intervals given in any order.
+    /// Below this many items a parallel sort does not reliably beat a sequential one (measured).
+    [<Literal>]
+    let private ParallelSortThreshold = 10000
+
     let normalize (items: BoundedInterval<'T> array) =
         let sorted = Array.copy items
-        Array.sortInPlace sorted
+
+        if sorted.Length >= ParallelSortThreshold then
+            Array.Parallel.sortInPlaceWith compareBounds sorted
+        else
+            Array.Sort(sorted, Comparer.Create(Comparison compareBounds))
+
         coalesce sorted
 
     /// Where a value lies relative to an interval: -1 before, 0 inside, 1 after.

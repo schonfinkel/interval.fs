@@ -119,5 +119,25 @@ let private construction =
                   ((*) 3 >> (+) 1)
                   a) ]
 
+/// Inputs above the cutoffs where the library switches to Array.Parallel.
+let private parallelPaths =
+    let largeConfig = { config with maxTest = 25 }
+
+    let propLarge name generator property =
+        testPropertyWithConfig largeConfig name (fun () -> Prop.forAll (Arb.fromGen generator) property)
+
+    testList
+        "parallel paths"
+        [ propLarge
+              "a parallel-sorted ofArray matches a sequential union"
+              (Gen.arrayOfLength 12000 boundedInterval)
+              (fun items ->
+                  Interval.ofArray items = Array.fold
+                      (fun acc item -> union acc (Interval.ofBounded item))
+                      Interval.empty
+                      items)
+          propLarge "a parallel intersections matches a fold" (Gen.arrayOfLength 300 interval) (fun items ->
+              Interval.intersections items[0] items[1..] = Array.fold inter items[0] items[1..]) ]
+
 let tests =
-    testList "[Laws] intervals" [ homomorphism; canonicity; lattice; order; construction ]
+    testList "[Laws] intervals" [ homomorphism; canonicity; lattice; order; construction; parallelPaths ]

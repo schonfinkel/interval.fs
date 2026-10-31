@@ -60,7 +60,7 @@ module BoundedInterval =
 
     /// How an interval that starts and ends first relates to the other one.
     let private relateLeading (first: BoundedInterval<'T>) (second: BoundedInterval<'T>) =
-        match compare first.Upper.Value second.Lower.Value, first.Upper.Kind, second.Lower.Kind with
+        match Endpoint.order first.Upper.Value second.Lower.Value, first.Upper.Kind, second.Lower.Kind with
         | 0, Excluded, Excluded -> Before
         | 0, _, _ -> Meets
         | order, _, _ when order < 0 -> Before
