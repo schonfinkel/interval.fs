@@ -3,15 +3,7 @@ module Main
 open Expecto
 
 [<Tests>]
-let tests =
-    testList
-        "Tests"
-        [ Interval.Tests.TryCreate.unitTests
-          Interval.Tests.Intersection.unitTests
-          Interval.Tests.Union.unitTests
-          Interval.Tests.Merge.unitTests
-          Interval.Tests.Relate.unitTests
-          Interval.Tests.Properties.propertyTests ]
+let tests = testList "Tests" [ Interval.Tests.Examples.tests ]
 
 [<EntryPoint>]
 let main argv = runTestsWithCLIArgs [] argv tests

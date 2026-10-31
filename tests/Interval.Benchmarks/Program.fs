@@ -6,7 +6,6 @@ open BenchmarkDotNet.Running
 
 open Interval.Builders
 open Interval.Core
-open Interval.Functions
 
 /// The input distributions a merge is measured against.
 type Shape =
@@ -67,26 +66,26 @@ type MergeBenchmarks() =
         input <- Input.bounds this.Shape this.Count
 
     [<Benchmark>]
-    member _.Merge() = merge input
+    member _.OfSeq() = Interval.ofSeq input
 
 [<MemoryDiagnoser; ShortRunJob>]
 type SetOperationBenchmarks() =
-    let mutable left = Empty
-    let mutable right = Empty
+    let mutable left = Interval.empty
+    let mutable right = Interval.empty
 
     [<Params(10, 1000)>]
     member val Count = 0 with get, set
 
     [<GlobalSetup>]
     member this.Setup() =
-        left <- merge (Input.evenlySpaced 0 1 this.Count)
-        right <- merge (Input.evenlySpaced 1 2 this.Count)
+        left <- Interval.ofSeq (Input.evenlySpaced 0 1 this.Count)
+        right <- Interval.ofSeq (Input.evenlySpaced 1 2 this.Count)
 
     [<Benchmark(Baseline = true)>]
-    member _.Intersection() = intersection left right
+    member _.Intersection() = Interval.intersection left right
 
     [<Benchmark>]
-    member _.Union() = union left right
+    member _.Union() = Interval.union left right
 
 module Program =
     [<EntryPoint>]
