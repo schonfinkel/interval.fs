@@ -87,7 +87,6 @@ type BoundedInterval<'T when 'T: comparison> =
 
         $"{opening}{this.LowerBound.Value}, {this.UpperBound.Value}{closing}"
 
-    override this.ToString() = this.Display
 
     override this.Equals other =
         match other with
@@ -243,8 +242,6 @@ module internal Sweep =
         walk 0 0
         pieces.ToArray()
 
-// SWEEP-OPERATIONS
-
 /// Any finite union of bounded intervals, held in canonical form: ascending,
 /// non-empty and pairwise disconnected. Equal sets of values are always equal
 /// values of this type.
@@ -259,7 +256,18 @@ type Interval<'T when 'T: comparison> =
         | Pieces [||] -> "∅"
         | Pieces pieces -> pieces |> Array.map _.Display |> String.concat " ∪ "
 
-    override this.ToString() = this.Display
+
+    /// The identity of union, which also lets List.sum work on intervals.
+    static member Zero: Interval<'T> = Pieces [||]
+
+    /// Union.
+    static member (+)(Pieces left: Interval<'T>, Pieces right: Interval<'T>) = Pieces(Sweep.union left right)
+
+    /// Intersection.
+    static member (*)(Pieces left: Interval<'T>, Pieces right: Interval<'T>) = Pieces(Sweep.intersection left right)
+
+    /// Difference.
+    static member (-)(Pieces left: Interval<'T>, Pieces right: Interval<'T>) = Pieces(Sweep.difference left right)
 
 /// Read access to the canonical form of an interval.
 [<AutoOpen>]

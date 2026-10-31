@@ -9,6 +9,7 @@
 
     <ItemGroup>
         <Compile Include="Core.fs" />
+        <Compile Include="Relation.fs" />
         <Compile Include="Interval.fs" />
         <Compile Include="Builders.fs" />
     </ItemGroup>
