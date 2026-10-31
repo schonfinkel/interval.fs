@@ -53,7 +53,7 @@ module Input =
 type MergeBenchmarks() =
     let mutable input = []
 
-    [<Params(10, 1000, 10000)>]
+    [<Params(10, 1000, 10000, 100000)>]
     member val Count = 0 with get, set
 
     [<ParamsSource("Shapes")>]
@@ -73,7 +73,7 @@ type SetOperationBenchmarks() =
     let mutable left = Interval.empty
     let mutable right = Interval.empty
 
-    [<Params(10, 1000)>]
+    [<Params(10, 1000, 100000)>]
     member val Count = 0 with get, set
 
     [<GlobalSetup>]
