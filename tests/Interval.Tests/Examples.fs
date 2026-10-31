@@ -5,6 +5,7 @@ open Expecto
 
 open Interval.Builders
 open Interval.Core
+open Interval.Tests.Generators
 
 let private bounded lower upper =
     match BoundedInterval.TryCreate(lower, upper) with
@@ -49,7 +50,7 @@ let private operations =
           }
           test "disjoint union keeps both pieces in order" {
               Expect.equal
-                  (Interval.toList (Interval.union (closed 5 7) (opened 1 4)))
+                  (piecesOf (Interval.union (closed 5 7) (opened 1 4)))
                   [ bounded (exc 1) (exc 4); bounded (inc 5) (inc 7) ]
                   "Pieces"
           }
@@ -59,9 +60,9 @@ let private operations =
                   (Interval.union (closedOpen 1 3) (closed 5 10))
                   "Difference"
           }
-          test "ofSeq collapses the docs example" {
+          test "ofArray collapses the docs example" {
               let merged =
-                  Interval.ofSeq
+                  ofPieces
                       [ bounded (exc 1) (exc 5)
                         bounded (inc 3) (inc 7)
                         bounded (exc 6) (inc 8)
@@ -75,7 +76,7 @@ let private operations =
               Expect.equal (a + b) (Interval.union a b) "Plus"
               Expect.equal (a * b) (Interval.intersection a b) "Times"
               Expect.equal (a - b) (Interval.difference a b) "Minus"
-              Expect.equal (List.sum [ a; b ]) (closed 1 7) "Sum"
+              Expect.equal (Array.sum [| a; b |]) (closed 1 7) "Sum"
           }
           test "patterns expose the canonical form" {
               let describe interval =

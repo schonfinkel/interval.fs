@@ -39,19 +39,18 @@ module Input =
         | Ordered -> scattered count |> Array.sort
         | Clumped -> clumped count |> shuffled
         |> Array.choose closed
-        |> List.ofArray
 
     /// Evenly spaced pieces, offset so that the two sets interleave and touch.
     let evenlySpaced offset width count =
-        List.init count (fun i -> 4 * i + offset, 4 * i + offset + width)
-        |> List.choose closed
+        Array.init count (fun i -> 4 * i + offset, 4 * i + offset + width)
+        |> Array.choose closed
 
 // BenchmarkDotNet discovers public classes with settable properties, so these
 // two types stay classes. Everything they measure is pure.
 
 [<MemoryDiagnoser; ShortRunJob>]
 type MergeBenchmarks() =
-    let mutable input = []
+    let mutable input = [||]
 
     [<Params(10, 1000, 10000, 100000)>]
     member val Count = 0 with get, set
@@ -66,7 +65,7 @@ type MergeBenchmarks() =
         input <- Input.bounds this.Shape this.Count
 
     [<Benchmark>]
-    member _.OfSeq() = Interval.ofSeq input
+    member _.OfArray() = Interval.ofArray input
 
 [<MemoryDiagnoser; ShortRunJob>]
 type SetOperationBenchmarks() =
@@ -78,8 +77,8 @@ type SetOperationBenchmarks() =
 
     [<GlobalSetup>]
     member this.Setup() =
-        left <- Interval.ofSeq (Input.evenlySpaced 0 1 this.Count)
-        right <- Interval.ofSeq (Input.evenlySpaced 1 2 this.Count)
+        left <- Interval.ofArray (Input.evenlySpaced 0 1 this.Count)
+        right <- Interval.ofArray (Input.evenlySpaced 1 2 this.Count)
 
     [<Benchmark(Baseline = true)>]
     member _.Intersection() = Interval.intersection left right

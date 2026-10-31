@@ -10,10 +10,10 @@ module Interval =
     let ofBounded (bounded: BoundedInterval<'T>) = Pieces [| bounded |]
 
     /// The union of bounded intervals given in any order, overlapping or not.
-    let ofSeq (items: BoundedInterval<'T> seq) = Pieces(Sweep.normalize items)
+    let ofArray (items: BoundedInterval<'T> array) = Pieces(Sweep.normalize items)
 
-    /// The connected pieces, in ascending order.
-    let toList (Pieces pieces: Interval<'T>) = List.ofArray pieces
+    /// A copy of the connected pieces, in ascending order.
+    let toArray (Pieces pieces: Interval<'T>) = Array.copy pieces
 
     /// Whether the interval holds no values.
     let isEmpty (Pieces pieces: Interval<'T>) = Array.isEmpty pieces
@@ -37,14 +37,15 @@ module Interval =
     let union (Pieces left: Interval<'T>) (Pieces right: Interval<'T>) = Pieces(Sweep.union left right)
 
     /// The values in any of the intervals.
-    let unions (items: Interval<'T> seq) = items |> Seq.collect toList |> ofSeq
+    let unions (items: Interval<'T> array) =
+        items |> Array.collect toArray |> ofArray
 
     /// The values in both intervals.
     let intersection (Pieces left: Interval<'T>) (Pieces right: Interval<'T>) = Pieces(Sweep.intersection left right)
 
     /// The values in every interval. Takes a first interval because intervals
     /// have no universal element for an empty collection to reduce to.
-    let intersections (first: Interval<'T>) (rest: Interval<'T> seq) = Seq.fold intersection first rest
+    let intersections (first: Interval<'T>) (rest: Interval<'T> array) = Array.fold intersection first rest
 
     /// The values in the first interval and not in the second.
     let difference (Pieces left: Interval<'T>) (Pieces right: Interval<'T>) = Pieces(Sweep.difference left right)
@@ -73,10 +74,10 @@ module Interval =
               Kind = point.Kind }
 
         pieces
-        |> Seq.choose (fun piece ->
+        |> Array.choose (fun piece ->
             BoundedInterval.TryCreate(mapPoint piece.LowerBound, mapPoint piece.UpperBound)
             |> Result.toOption)
-        |> ofSeq
+        |> ofArray
 
     /// The Allen relation of two connected, non-empty intervals; None otherwise,
     /// because the relations are only defined for connected intervals.

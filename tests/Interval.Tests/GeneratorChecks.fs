@@ -47,7 +47,7 @@ let tests =
                   candidate.Lower.Value = candidate.Upper.Value
 
               let hasTouchingPieces =
-                  Interval.toList
+                  piecesOf
                   >> List.pairwise
                   >> List.exists (fun (first, second) -> first.Upper.Value = second.Lower.Value)
 

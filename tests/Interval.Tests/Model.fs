@@ -3,6 +3,7 @@
 module Interval.Tests.Model
 
 open Interval.Core
+open Interval.Tests.Generators
 
 /// Covers every generated endpoint. Even probes sit on endpoints; odd probes
 /// fall strictly between them, standing in for a dense order.
@@ -21,7 +22,7 @@ let holds value (piece: BoundedInterval<int>) =
 
 /// The set of probes an interval holds.
 let denote (interval: Interval<int>) =
-    let pieces = Interval.toList interval
+    let pieces = piecesOf interval
 
     probes
     |> List.filter (fun value -> pieces |> List.exists (holds value))

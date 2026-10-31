@@ -8,6 +8,13 @@ module Generators =
     open Interval.Builders
     open Interval.Core
 
+    /// Connected pieces as a list, for ordinary test-side list processing.
+    let piecesOf interval =
+        Interval.toArray interval |> List.ofArray
+
+    /// Builds an interval from a list of fragments.
+    let ofPieces (pieces: BoundedInterval<int> list) = Interval.ofArray (Array.ofList pieces)
+
     let private tryBounded (lower, upper) =
         BoundedInterval.TryCreate(lower, upper) |> Result.toOption
 
@@ -55,7 +62,7 @@ module Generators =
         gen {
             let! count = Gen.choose (0, 6)
             let! pieces = Gen.listOfLength count boundedInterval
-            return Interval.ofSeq pieces
+            return ofPieces pieces
         }
 
     let relationSet =
@@ -63,11 +70,12 @@ module Generators =
             let! flags = Gen.listOfLength 13 (Gen.elements [ true; false ])
 
             return
-                RelationSet.toList RelationSet.all
+                (RelationSet.toArray RelationSet.all |> List.ofArray)
                 |> List.zip flags
                 |> List.filter fst
                 |> List.map snd
-                |> RelationSet.ofList
+                |> Array.ofList
+                |> RelationSet.ofArray
         }
 
     /// Strictly narrower valid intervals: either end as a point, or either half around
@@ -86,9 +94,9 @@ module Generators =
         |> Seq.choose tryBounded
         |> Seq.filter ((<>) original)
 
-    /// Removes a piece, then narrows a piece. Rebuilding through ofSeq keeps results canonical.
+    /// Removes a piece, then narrows a piece. Rebuilding through ofArray keeps results canonical.
     let shrinkInterval (original: Interval<int>) =
-        let pieces = Interval.toList original
+        let pieces = piecesOf original
 
         let withoutOne =
             pieces |> Seq.indexed |> Seq.map (fun (i, _) -> List.removeAt i pieces)
@@ -99,7 +107,7 @@ module Generators =
             |> Seq.collect (fun (i, piece) ->
                 shrinkBounded piece |> Seq.map (fun smaller -> List.updateAt i smaller pieces))
 
-        Seq.append withoutOne withOneNarrowed |> Seq.map Interval.ofSeq
+        Seq.append withoutOne withOneNarrowed |> Seq.map ofPieces
 
     let private fragmentsOf (piece: BoundedInterval<int>) =
         let first, last = piece.Lower.Value, piece.Upper.Value
@@ -121,7 +129,7 @@ module Generators =
             let! whole = interval
 
             let! fragments =
-                Interval.toList whole
+                piecesOf whole
                 |> List.map fragmentsOf
                 |> Gen.sequenceToList
                 |> Gen.map List.concat
@@ -130,7 +138,7 @@ module Generators =
             return whole, List.ofArray shuffled
         }
 
-    let allRelations = RelationSet.toList RelationSet.all
+    let allRelations = (RelationSet.toArray RelationSet.all |> List.ofArray)
 
     let private ascending =
         Gen.listOfLength 4 (Gen.choose (1, 3)) |> Gen.map (List.scan (+) 0 >> List.tail)

@@ -130,19 +130,19 @@ type RelationSet = internal Bits of bits: uint16
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module RelationSet =
     let private relations =
-        [ After
-          Before
-          Contains
-          During
-          Equals
-          Finishes
-          FinishedBy
-          Meets
-          MetBy
-          Overlaps
-          OverlappedBy
-          Starts
-          StartedBy ]
+        [| After
+           Before
+           Contains
+           During
+           Equals
+           Finishes
+           FinishedBy
+           Meets
+           MetBy
+           Overlaps
+           OverlappedBy
+           Starts
+           StartedBy |]
 
     let private index relation =
         match relation with
@@ -172,15 +172,15 @@ module RelationSet =
     let singleton relation = Bits(bit relation)
 
     /// The set with the given relations.
-    let ofList (items: Relation list) =
-        Bits(items |> List.fold (fun bits relation -> bits ||| bit relation) 0us)
+    let ofArray (items: Relation array) =
+        Bits(items |> Array.fold (fun bits relation -> bits ||| bit relation) 0us)
 
     /// Whether the set includes the relation.
     let contains relation (Bits bits) = bits &&& bit relation <> 0us
 
     /// The relations in the set, in declaration order of Relation.
-    let toList set =
-        relations |> List.filter (fun relation -> contains relation set)
+    let toArray set =
+        relations |> Array.filter (fun relation -> contains relation set)
 
     /// The relations in either set.
     let union (Bits left) (Bits right) = Bits(left ||| right)
@@ -193,16 +193,16 @@ module RelationSet =
 
     /// The inverse of every relation in the set.
     let converse set =
-        set |> toList |> List.map Relation.invert |> ofList
+        set |> toArray |> Array.map Relation.invert |> ofArray
 
     /// Intervals that share no interior: Before, After, Meets and MetBy.
-    let disjoint = ofList [ Before; After; Meets; MetBy ]
+    let disjoint = ofArray [| Before; After; Meets; MetBy |]
 
     /// Intervals that have time in common: everything except disjoint.
     let concur = complement disjoint
 
     /// a lies inside b: Starts, During, Finishes and Equals.
-    let within = ofList [ Starts; During; Finishes; Equals ]
+    let within = ofArray [| Starts; During; Finishes; Equals |]
 
     /// Whether the relation from a to b is in the set.
     let holds set (a: BoundedInterval<'T>) (b: BoundedInterval<'T>) =
@@ -238,5 +238,5 @@ module RelationSet =
 
     /// Composition of general relations: the union of compositions of their members.
     let compose first second =
-        List.allPairs (toList first) (toList second)
-        |> List.fold (fun result (r, s) -> union result (composeRelations r s)) empty
+        Array.allPairs (toArray first) (toArray second)
+        |> Array.fold (fun result (r, s) -> union result (composeRelations r s)) empty

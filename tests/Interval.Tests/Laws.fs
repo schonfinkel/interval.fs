@@ -46,16 +46,15 @@ let private canonicity =
         "canonical form"
         [ prop "pieces are separated by values the interval does not hold" (fun (a: I) ->
               let held = denote a
-              Interval.toList a |> List.pairwise |> List.forall (gapBetween held))
+              piecesOf a |> List.pairwise |> List.forall (gapBetween held))
           prop "pieces ascend" (fun (a: I) ->
-              let pieces = Interval.toList a
+              let pieces = piecesOf a
               pieces = List.sort pieces && pieces = List.distinct pieces)
           testPropertyWithConfig config "any covering fragments rebuild the same value" (fun () ->
-              Prop.forAll (Arb.fromGen intervalWithFragments) (fun (whole, fragments) ->
-                  Interval.ofSeq fragments = whole))
-          prop "toList then ofSeq is the identity" (fun (a: I) -> Interval.ofSeq (Interval.toList a) = a)
+              Prop.forAll (Arb.fromGen intervalWithFragments) (fun (whole, fragments) -> ofPieces fragments = whole))
+          prop "toArray then ofArray is the identity" (fun (a: I) -> Interval.ofArray (Interval.toArray a) = a)
           prop "isConnected means at most one piece" (fun (a: I) ->
-              Interval.isConnected a = (List.length (Interval.toList a) <= 1)) ]
+              Interval.isConnected a = (List.length (piecesOf a) <= 1)) ]
 
 let private lattice =
     testList
@@ -89,15 +88,15 @@ let private order =
 let private construction =
     testList
         "constructors, hull and mapping"
-        [ prop "unions is a fold of union" (fun (items: I list) ->
-              Interval.unions items = List.fold union Interval.empty items)
-          prop "List.sum is unions" (fun (items: I list) -> List.sum items = Interval.unions items)
-          prop "intersections is a fold of intersection" (fun (first: I) (rest: I list) ->
-              Interval.intersections first rest = List.fold inter first rest)
-          prop "ofSeq is order-independent" (fun (items: BoundedInterval<int> list) ->
-              Interval.ofSeq items = Interval.ofSeq (List.rev items))
-          prop "ofSeq is a fold of union" (fun (items: BoundedInterval<int> list) ->
-              Interval.ofSeq items = List.fold
+        [ prop "unions is a fold of union" (fun (items: I array) ->
+              Interval.unions items = Array.fold union Interval.empty items)
+          prop "List.sum is unions" (fun (items: I array) -> Array.sum items = Interval.unions items)
+          prop "intersections is a fold of intersection" (fun (first: I) (rest: I array) ->
+              Interval.intersections first rest = Array.fold inter first rest)
+          prop "ofArray is order-independent" (fun (items: BoundedInterval<int> array) ->
+              Interval.ofArray items = Interval.ofArray (Array.rev items))
+          prop "ofArray is a fold of union" (fun (items: BoundedInterval<int> array) ->
+              Interval.ofArray items = Array.fold
                   (fun acc item -> union acc (Interval.ofBounded item))
                   Interval.empty
                   items)

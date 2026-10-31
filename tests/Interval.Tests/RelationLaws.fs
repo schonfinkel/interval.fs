@@ -76,9 +76,9 @@ let private booleanAlgebra =
               a +. complement a = RelationSet.all && a *. complement a = RelationSet.empty)
           prop "complement is an involution" (fun a -> complement (complement a) = a)
           prop "De Morgan" (fun a b -> complement (a +. b) = complement a *. complement b)
-          prop "ofList and toList round trip" (fun a -> RelationSet.ofList (RelationSet.toList a) = a)
-          prop "contains agrees with toList" (fun a (r: Relation) ->
-              RelationSet.contains r a = List.contains r (RelationSet.toList a))
+          prop "ofArray and toArray round trip" (fun a -> RelationSet.ofArray (RelationSet.toArray a) = a)
+          prop "contains agrees with toArray" (fun a (r: Relation) ->
+              RelationSet.contains r a = Array.contains r (RelationSet.toArray a))
           prop "converse is an involution" (fun a -> RelationSet.converse (RelationSet.converse a) = a)
           prop "converse distributes over union" (fun a b ->
               RelationSet.converse (a +. b) = RelationSet.converse a +. RelationSet.converse b) ]
@@ -92,7 +92,7 @@ let private composition =
         |> List.map (fun (a, b, c) ->
             (List.head (relationsHolding a b), List.head (relationsHolding b c)), List.head (relationsHolding a c))
         |> List.groupBy fst
-        |> List.map (fun (cell, outcomes) -> cell, outcomes |> List.map snd |> RelationSet.ofList)
+        |> List.map (fun (cell, outcomes) -> cell, outcomes |> List.map snd |> Array.ofList |> RelationSet.ofArray)
 
     let tripleOf interval = Arb.fromGen (Gen.three interval)
 

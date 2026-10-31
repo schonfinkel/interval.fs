@@ -146,8 +146,8 @@ module internal Sweep =
         pieces.ToArray()
 
     /// The canonical pieces of intervals given in any order.
-    let normalize (items: BoundedInterval<'T> seq) =
-        let sorted = Seq.toArray items
+    let normalize (items: BoundedInterval<'T> array) =
+        let sorted = Array.copy items
         Array.sortInPlace sorted
         coalesce sorted
 
@@ -257,7 +257,7 @@ type Interval<'T when 'T: comparison> =
         | Pieces pieces -> pieces |> Array.map _.Display |> String.concat " ∪ "
 
 
-    /// The identity of union, which also lets List.sum work on intervals.
+    /// The identity of union, which also lets Array.sum work on intervals.
     static member Zero: Interval<'T> = Pieces [||]
 
     /// Union.
@@ -277,4 +277,4 @@ module Patterns =
         match pieces with
         | [||] -> Empty
         | [| piece |] -> Singleton piece
-        | many -> Union(List.ofArray many)
+        | many -> Union(Array.copy many)

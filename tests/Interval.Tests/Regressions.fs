@@ -5,6 +5,7 @@ open Expecto
 
 open Interval.Builders
 open Interval.Core
+open Interval.Tests.Generators
 
 let private bounded first last =
     BoundedInterval.TryCreate(inc first, inc last)
@@ -25,8 +26,8 @@ let private equalities =
       "[5,9] ∩ {[5,6],[8,9]} keeps both pieces", Interval.intersection (closed 5 9) two, two
       "[5,8] ∪ {[5,6],[8,9]} coalesces", Interval.union (closed 5 8) two, closed 5 9
       "union regroups", closed 1 2 + closed 4 5 + closed 2 4, closed 1 2 + (closed 4 5 + closed 2 4)
-      "ofSeq merges out-of-order chains",
-      Interval.ofSeq (List.concat [ bounded 1 2; bounded 5 6; bounded 2 3; bounded 6 7 ]),
+      "ofArray merges out-of-order chains",
+      ofPieces (List.concat [ bounded 1 2; bounded 5 6; bounded 2 3; bounded 6 7 ]),
       closed 1 3 + closed 5 7 ]
 
 let private relations =
