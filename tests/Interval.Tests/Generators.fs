@@ -70,11 +70,19 @@ module Generators =
                 |> RelationSet.ofList
         }
 
-    /// Narrower valid intervals: the lower point, the upper point, then a closed version.
+    /// Strictly narrower valid intervals: either end as a point, or either half around
+    /// an even midpoint strictly inside.
     let shrinkBounded (original: BoundedInterval<int>) =
-        [ original.Lower, inc original.Lower.Value
-          inc original.Upper.Value, original.Upper
-          inc original.Lower.Value, inc original.Upper.Value ]
+        let first, last = original.Lower.Value, original.Upper.Value
+
+        let halves =
+            if last - first >= 4 then
+                let middle = first + 2 * ((last - first) / 4)
+                [ original.Lower, inc middle; inc middle, original.Upper ]
+            else
+                []
+
+        [ original.Lower, inc first; inc last, original.Upper ] @ halves
         |> Seq.choose tryBounded
         |> Seq.filter ((<>) original)
 
@@ -93,8 +101,78 @@ module Generators =
 
         Seq.append withoutOne withOneNarrowed |> Seq.map Interval.ofSeq
 
+    let private fragmentsOf (piece: BoundedInterval<int>) =
+        let first, last = piece.Lower.Value, piece.Upper.Value
+
+        let split =
+            gen {
+                let! middle = Gen.choose (first + 1, last - 1)
+                return [ bounded (piece.Lower, inc middle); bounded (inc middle, piece.Upper) ]
+            }
+
+        if first = last then
+            Gen.constant [ piece; piece ]
+        else
+            Gen.oneof [ Gen.constant [ piece ]; Gen.constant [ piece; piece ]; split ]
+
+    /// An interval and a shuffled, redundant set of fragments that cover exactly its values.
+    let intervalWithFragments =
+        gen {
+            let! whole = interval
+
+            let! fragments =
+                Interval.toList whole
+                |> List.map fragmentsOf
+                |> Gen.sequenceToList
+                |> Gen.map List.concat
+
+            let! shuffled = Gen.shuffle fragments
+            return whole, List.ofArray shuffled
+        }
+
+    let allRelations = RelationSet.toList RelationSet.all
+
+    let private ascending =
+        Gen.listOfLength 4 (Gen.choose (1, 3)) |> Gen.map (List.scan (+) 0 >> List.tail)
+
+    let private shapeOf relation (p, q, r, s) =
+        match relation with
+        | Before -> (p, q), (r, s)
+        | After -> (r, s), (p, q)
+        | Meets -> (p, q), (q, r)
+        | MetBy -> (q, r), (p, q)
+        | Overlaps -> (p, r), (q, s)
+        | OverlappedBy -> (q, s), (p, r)
+        | Starts -> (p, q), (p, r)
+        | StartedBy -> (p, r), (p, q)
+        | Finishes -> (q, r), (p, r)
+        | FinishedBy -> (p, r), (q, r)
+        | During -> (q, r), (p, s)
+        | Contains -> (p, s), (q, r)
+        | Equals -> (p, q), (p, q)
+
+    /// A relation and a pair of intervals built to stand in exactly that relation.
+    let relationScenario =
+        gen {
+            let! relation = Gen.elements allRelations
+            let! points = ascending
+            let! upperKind = kind
+
+            let build (first, last) =
+                bounded (inc first, { Value = last; Kind = upperKind })
+
+            let a, b =
+                match points with
+                | [ p; q; r; s ] -> shapeOf relation (p, q, r, s)
+                | _ -> failwith "ascending always yields four points"
+
+            return relation, build a, build b
+        }
+
     /// Registered through FsCheckConfig.arbitrary.
     type Arbitraries =
+        static member Relation() = Arb.fromGen (Gen.elements allRelations)
+
         static member BoundedInterval() =
             Arb.fromGenShrink (boundedInterval, shrinkBounded)
 

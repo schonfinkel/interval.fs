@@ -26,6 +26,10 @@
         <Compile Include="Generators.fs" />
         <Compile Include="Model.fs" />
         <Compile Include="Examples.fs" />
+        <Compile Include="Laws.fs" />
+        <Compile Include="RelationLaws.fs" />
+        <Compile Include="Regressions.fs" />
+        <Compile Include="GeneratorChecks.fs" />
         <Compile Include="Program.fs" />
     </ItemGroup>
 

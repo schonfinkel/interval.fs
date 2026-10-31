@@ -117,30 +117,4 @@ let private carriers =
                   "Overlap"
           } ]
 
-let private relations =
-    let cases =
-        [ Equals, (1, 5), (1, 5)
-          Before, (1, 3), (5, 7)
-          After, (5, 7), (1, 3)
-          Meets, (1, 3), (3, 5)
-          MetBy, (3, 5), (1, 3)
-          Overlaps, (1, 4), (3, 6)
-          OverlappedBy, (3, 6), (1, 4)
-          Starts, (1, 3), (1, 5)
-          StartedBy, (1, 5), (1, 3)
-          Finishes, (3, 5), (1, 5)
-          FinishedBy, (1, 5), (3, 5)
-          During, (3, 5), (1, 7)
-          Contains, (1, 7), (3, 5) ]
-
-    testList
-        "Allen's 13 relations"
-        [ for expected, (a1, a2), (b1, b2) in cases ->
-              test $"%A{expected}" {
-                  let a, b = bounded (inc a1) (inc a2), bounded (inc b1) (inc b2)
-                  Expect.equal (BoundedInterval.relate a b) expected "Relation"
-                  Expect.isTrue (RelationSet.holds (RelationSet.singleton expected) a b) "Holds"
-              } ]
-
-let tests =
-    testList "[Examples]" [ tryCreate; builders; operations; carriers; relations ]
+let tests = testList "[Examples]" [ tryCreate; builders; operations; carriers ]
