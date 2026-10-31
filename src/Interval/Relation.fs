@@ -121,3 +121,122 @@ module BoundedInterval =
 
     /// a and b have the same endpoints.
     let equals a b = relate a b = Equals
+
+/// A set of Allen relations, for expressing that any of several relations may hold.
+[<Struct>]
+type RelationSet = internal Bits of bits: uint16
+
+/// Boolean algebra, converse and composition over sets of relations.
+[<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
+module RelationSet =
+    let private relations =
+        [ After
+          Before
+          Contains
+          During
+          Equals
+          Finishes
+          FinishedBy
+          Meets
+          MetBy
+          Overlaps
+          OverlappedBy
+          Starts
+          StartedBy ]
+
+    let private index relation =
+        match relation with
+        | After -> 0
+        | Before -> 1
+        | Contains -> 2
+        | During -> 3
+        | Equals -> 4
+        | Finishes -> 5
+        | FinishedBy -> 6
+        | Meets -> 7
+        | MetBy -> 8
+        | Overlaps -> 9
+        | OverlappedBy -> 10
+        | Starts -> 11
+        | StartedBy -> 12
+
+    let private bit relation = 1us <<< index relation
+
+    /// The set with no relations.
+    let empty = Bits 0us
+
+    /// The set with all thirteen relations.
+    let all = Bits 0x1FFFus
+
+    /// The set with one relation.
+    let singleton relation = Bits(bit relation)
+
+    /// The set with the given relations.
+    let ofList (items: Relation list) =
+        Bits(items |> List.fold (fun bits relation -> bits ||| bit relation) 0us)
+
+    /// Whether the set includes the relation.
+    let contains relation (Bits bits) = bits &&& bit relation <> 0us
+
+    /// The relations in the set, in declaration order of Relation.
+    let toList set =
+        relations |> List.filter (fun relation -> contains relation set)
+
+    /// The relations in either set.
+    let union (Bits left) (Bits right) = Bits(left ||| right)
+
+    /// The relations in both sets.
+    let intersect (Bits left) (Bits right) = Bits(left &&& right)
+
+    /// The relations not in the set.
+    let complement (Bits bits) = Bits(~~~bits &&& 0x1FFFus)
+
+    /// The inverse of every relation in the set.
+    let converse set =
+        set |> toList |> List.map Relation.invert |> ofList
+
+    /// Intervals that share no interior: Before, After, Meets and MetBy.
+    let disjoint = ofList [ Before; After; Meets; MetBy ]
+
+    /// Intervals that have time in common: everything except disjoint.
+    let concur = complement disjoint
+
+    /// a lies inside b: Starts, During, Finishes and Equals.
+    let within = ofList [ Starts; During; Finishes; Equals ]
+
+    /// Whether the relation from a to b is in the set.
+    let holds set (a: BoundedInterval<'T>) (b: BoundedInterval<'T>) =
+        contains (BoundedInterval.relate a b) set
+
+    // Six points order three intervals in every possible way, so walking all
+    // triples of closed intervals over them observes each composition exactly.
+    let private compositions =
+        let closed first last =
+            { LowerBound = { Value = first; Kind = Included }
+              UpperBound = { Value = last; Kind = Included } }
+
+        let intervals =
+            [| for first in 0..5 do
+                   for last in first + 1 .. 5 -> closed first last |]
+
+        let cells = Array.zeroCreate<uint16> (13 * 13)
+
+        for a in intervals do
+            for b in intervals do
+                for c in intervals do
+                    let cell =
+                        index (BoundedInterval.relate a b) * 13 + index (BoundedInterval.relate b c)
+
+                    cells[cell] <- cells[cell] ||| bit (BoundedInterval.relate a c)
+
+        cells
+
+    /// The relations possible from a to c, given the relation from a to b and from b to c.
+    /// Sound for proper intervals with uniform boundary shape; see docs/examples.md.
+    let composeRelations first second =
+        Bits compositions[index first * 13 + index second]
+
+    /// Composition of general relations: the union of compositions of their members.
+    let compose first second =
+        List.allPairs (toList first) (toList second)
+        |> List.fold (fun result (r, s) -> union result (composeRelations r s)) empty

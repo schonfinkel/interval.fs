@@ -77,3 +77,10 @@ module Interval =
             BoundedInterval.TryCreate(mapPoint piece.LowerBound, mapPoint piece.UpperBound)
             |> Result.toOption)
         |> ofSeq
+
+    /// The Allen relation of two connected, non-empty intervals; None otherwise,
+    /// because the relations are only defined for connected intervals.
+    let tryRelate (Pieces left: Interval<'T>) (Pieces right: Interval<'T>) =
+        match left, right with
+        | [| a |], [| b |] -> Some(BoundedInterval.relate a b)
+        | _ -> None
