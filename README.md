@@ -10,11 +10,12 @@
 
 A small F# implementation of [Allen's Interval Algebra](https://cse.unl.edu/~choueiry/Documents/Allen-CACM1983.pdf) for .NET.
 
-- Generic over any `'T` that implements `IEquatable` and `IComparable`.
-- Closed and open boundaries via `Boundary.Kind = Included | Excluded`.
-- Validating constructor (`BoundedInterval.TryCreate`) that rejects inverted and zero-width ranges.
-- A smart constructor (`Interval.ofSet`) that collapses results to canonical `Empty` / `Singleton` / `Union`.
-- Every public operation returns a `Result` or a canonical `Interval`, never throws for business logic.
+- Generic over any `'T` that supports F# comparison.
+- Open and closed boundaries, with exact set semantics at touching endpoints.
+- `Interval<'T>` values are always canonical, so equal sets of values are equal.
+- Union, intersection and difference in linear time; construction sorts in parallel for large inputs.
+- All 13 relations, plus relation sets and composition.
+- Invalid intervals cannot be constructed. The public API uses arrays throughout.
 
 ## Install
 
@@ -27,36 +28,27 @@ dotnet add package interval.fs
 ```fsharp
 open Interval.Builders
 open Interval.Core
-open Interval.Functions
 
-// [1, 5) ∩ [3, 7] = [3, 5)
-// You can manually construct a record...
-let start1 = { Value = 1; Kind = Included }
-let end1 = { Value = 5; Kind = Excluded 
 // [1, 5)
-let a = Singleton { Start = start1; End = end1 } }
+let a = closedOpen 1 5
 
-// ...or use one of the builders to make it more erngonomic
 // [3, 7]
-let b = singleton (inc 3) (inc 7)
+let b = closed 3 7
 
-intersection a b
-// Singleton { Start = { Value = 3; Kind = Included }; End = { Value = 5; Kind = Excluded } }
-
-relate a b
-// Overlaps
+Interval.intersection a b // [3, 5)
+Interval.union a b // [1, 7]
+Interval.difference a b // [1, 3)
+Interval.tryRelate a b // Some Overlaps
 ```
 
-For a full walkthrough, types, safe construction with `TryCreate`, `intersection`, `union`, `merge`, the full `Relation` set, and the error model. See [docs/examples.md](./docs/examples.md).
+For a full walkthrough of the types, operations, relation algebra and laws, see [docs/examples.md](./docs/examples.md).
 
 ## Libraries
 
 | Namespace / module | Contents |
 |---|---|
-| `Interval.Core` | `Boundary.Kind`, `Boundary<'T>`, `BoundedInterval<'T>`, `Interval<'T>`, `Relation`, `IntervalError`, the `Interval.ofSet` smart constructor |
-| `Interval.Builders` | Quality of life functions like `inc`, `enc`, `BoundedInterval<'T>`, `Interval<'T>`, `Relation`, `IntervalError`, the `Interval.ofSet` smart constructor |
-| `Interval.Functions` | `intersection`, `union`, `merge`, `relate`, `invert`, `tryGetSingleton` |
-| `Interval.Predicates` | `isEmpty`, , `starts` / `finishes` / `precedes`, and a few internal utilities |
+| `Interval.Core` | `Point`, `BoundedInterval`, `Interval` and its `Empty` / `Singleton` / `Union` pattern, `Relation`, `RelationSet`, `IntervalError`, and their operation modules |
+| `Interval.Builders` | `inc`, `exc`, `interval`, `closed`, `opened`, `closedOpen`, `openClosed`, `point` |
 
 ## Development
 
@@ -84,7 +76,13 @@ From either shell:
 dotnet test
 ```
 
-The suite combines example-based Expecto tests and FsCheck-driven property tests
+The suite is mostly FsCheck properties stating the algebra's laws against an independent model, with a few Expecto examples and regressions.
+
+Benchmarks use BenchmarkDotNet:
+
+```shell
+dotnet run -c Release --project tests/Interval.Benchmarks -- --filter '*'
+```
 
 ### Contributing
 

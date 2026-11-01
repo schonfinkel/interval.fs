@@ -1,22 +1,15 @@
 # Examples
 
-This page walks through every public operation in `interval.fs` with runnable examples. Every snippet uses the integer type for clarity; the library is generic over any `'T` that implements `IEquatable` and `IComparable`.
+Every snippet uses integers for clarity. The library is generic over any `'T` that supports F# comparison.
 
-- [Examples](#examples)
-  - [Setup](#setup)
-  - [Boundaries](#boundaries)
-  - [Bounded intervals](#bounded-intervals)
-    - [Safe construction with `TryCreate`](#safe-construction-with-trycreate)
-    - [Direct record construction](#direct-record-construction)
-  - [Intervals](#intervals)
-    - [`Interval.ofSet` smart constructor](#intervalofset-smart-constructor)
-  - [Operations](#operations)
-    - [Intersection](#intersection)
-    - [Union](#union)
-    - [Merge](#merge)
-    - [Relationships](#relationships)
-    - [Invert](#invert)
-  - [Error model](#error-model)
+- [Setup](#setup)
+- [Endpoints and bounded intervals](#endpoints-and-bounded-intervals)
+- [Intervals](#intervals)
+- [Set operations](#set-operations)
+- [Allen's relations](#allens-relations)
+- [Relation sets and composition](#relation-sets-and-composition)
+- [Laws](#laws)
+- [Performance notes](#performance-notes)
 
 ---
 
@@ -24,217 +17,185 @@ This page walks through every public operation in `interval.fs` with runnable ex
 
 ```fsharp
 open Interval.Core
-open Interval.Functions
+open Interval.Builders
 ```
-
-`Interval.Core` exposes the types, `Interval.Functions` exposes the operations.
 
 ---
 
-## Boundaries
+## Endpoints and bounded intervals
 
-A `Boundary<'T>` is a value plus an open/closed `BoundaryKind`:
-
-```fsharp
-// Included, the value is part of the interval, e.g. the `1` in [1, 5)
-let a = { Value = 1; Kind = Included }
-
-// Excluded, the value is not part of the interval, e.g. the `5` in [1, 5)
-let b = { Value = 5; Kind = Excluded }
-```
-
-Boundaries compare by value first, then by kind (`Included` ranks above `Excluded` at the same value). This is what makes `max`/`min` of boundaries work correctly when the library computes intersections and unions.
-
----
-
-## Bounded intervals
-
-A `BoundedInterval<'T>` is the pair `(Start, End)`. The library has two paths to build one.
-
-### Safe construction with `TryCreate`
-
-`BoundedInterval.TryCreate` is the recommended entry point. It rejects any combination where `Start >= End`, so you can never end up with an inverted or zero-width range silently propagating through `union` / `intersection`:
+An endpoint is a value plus whether it belongs to the interval. `inc` and `exc` build them:
 
 ```fsharp
-let startB = { Value = 1; Kind = Included }
-let endB   = { Value = 5; Kind = Excluded }
-
-match BoundedInterval.TryCreate(startB, endB) with
-| Ok interval ->
-    // interval : BoundedInterval<int>
-    printfn "valid: %A" interval
-| Error (InvalidBoundaries reason) ->
-    printfn "rejected: %s" reason
-| Error (InvalidArgument msg) ->
-    printfn "rejected: %s" msg
+let included = inc 1 // the 1 in [1, 5)
+let excluded = exc 5 // the 5 in [1, 5)
 ```
 
-Inverted input is rejected:
+`BoundedInterval.TryCreate` is the only way to build a `BoundedInterval`. Every instance encloses at least one value:
 
 ```fsharp
-BoundedInterval.TryCreate({ Value = 5; Kind = Included }, { Value = 1; Kind = Included })
-// Error (InvalidBoundaries "Start must be strictly less than End")
+let valid = BoundedInterval.TryCreate(inc 1, exc 5) // Ok [1, 5)
+let singleValue = BoundedInterval.TryCreate(inc 3, inc 3) // Ok [3, 3]
+let inverted = BoundedInterval.TryCreate(inc 5, inc 1) // Error InvertedBounds
+let holdsNothing = BoundedInterval.TryCreate(exc 1, inc 1) // Error EmptyBounds
+let notOrdered = BoundedInterval.TryCreate(inc nan, inc 1.0) // Error NotComparable
+
+match valid with
+| Ok interval -> printfn $"{interval.Lower.Value} to {interval.Upper.Value}"
+| Error error -> printfn $"{error.Description}"
 ```
-
-### Direct record construction
-
-The `BoundedInterval<'T>` record constructor is still public for backwards compatibility. It compiles but does **not** validate, use it only when you've already proven the invariant some other way.
-
-```fsharp
-// Compiles. Runtime behaviour of `(+)` and `(*)` on an inverted interval is undefined.
-let dangerous = { Start = { Value = 5; Kind = Included }; End = { Value = 1; Kind = Included } }
-```
-
-**Prefer `TryCreate` for any input that isn't a compile-time literal.**
 
 ---
 
 ## Intervals
 
-`Interval<'T>` is the sum of three cases:
+An `Interval<'T>` is any finite union of bounded intervals, always held in canonical form: ascending, non-empty, pairwise disconnected. Two intervals holding the same values are always equal.
 
-| Case | Meaning |
-|---|---|
-| `Empty` | The empty set. |
-| `Singleton b` | A single contiguous range. |
-| `Union s` | A set of two or more pairwise disjoint ranges. |
+Builders are total. Endpoints that enclose nothing give the empty interval:
 
 ```fsharp
-let emptySet   : Interval<int> = Empty
-let singleton1 : Interval<int> = Singleton { Start = { Value = 1; Kind = Included }; End = { Value = 5; Kind = Excluded } }
+let a = closed 1 5 // [1, 5]
+let b = opened 1 5 // (1, 5)
+let c = closedOpen 1 5 // [1, 5)
+let d = openClosed 1 5 // (1, 5]
+let e = point 3 // [3, 3]
+let none = closed 5 1 // ∅
 ```
 
-### `Interval.ofSet` smart constructor
-
-`Interval.ofSet` collapses a `Set<BoundedInterval<'T>>` to the canonical form: 0 items → `Empty`, 1 item → `Singleton`, 2+ items → `Union`. Use it when you're assembling an interval from an arbitrary set of ranges.
+Read the canonical form with `Interval.toArray` or the `Empty` / `Singleton` / `Union` pattern:
 
 ```fsharp
-let b1 = { Start = { Value = 1; Kind = Included }; End = { Value = 2; Kind = Included } }
-let b2 = { Start = { Value = 4; Kind = Included }; End = { Value = 5; Kind = Included } }
+let describe interval =
+    match interval with
+    | Empty -> "nothing"
+    | Singleton piece -> $"one piece: {piece}"
+    | Union pieces -> $"{pieces.Length} pieces"
 
-Set.ofList [ b1; b2 ] |> Interval.ofSet  // Union { b1 ; b2 }
-Set.ofList [ b1 ] |> Interval.ofSet  // Singleton b1
-Set.empty<_> |> Interval.ofSet  // Empty
+let pieces = Interval.toArray (closed 1 2 + closed 4 5)
+let held = Interval.contains 3 (closed 1 5) // true
+```
+
+`Interval.ofArray` builds one from bounded intervals in any order, overlapping or not:
+
+```fsharp
+let bounded lower upper =
+    match BoundedInterval.TryCreate(lower, upper) with
+    | Ok interval -> [| interval |]
+    | Error _ -> [||]
+
+let merged =
+    Array.concat
+        [ bounded (exc 1) (exc 5)
+          bounded (inc 3) (inc 7)
+          bounded (exc 6) (inc 10)
+          bounded (inc 11) (inc 12) ]
+    |> Interval.ofArray // (1, 10] ∪ [11, 12]
 ```
 
 ---
 
-## Operations
-
-All examples use this preamble:
+## Set operations
 
 ```fsharp
-let x1, y1 = { Value = 1; Kind = Excluded }, { Value = 5; Kind = Excluded }   // (1, 5)
-let x2, y2 = { Value = 3; Kind = Included }, { Value = 7; Kind = Included }   // [3, 7]
-let x3, y3 = { Value = 6; Kind = Excluded }, { Value = 8; Kind = Included }   // (6, 8]
-let x4, y4 = { Value = 6; Kind = Excluded }, { Value = 10; Kind = Included }  // (6, 10]
-let x5, y5 = { Value = 11; Kind = Included }, { Value = 12; Kind = Included } // [11, 12]
+let i1, i2 = opened 1 5, closed 3 7
 
-let i1 = Singleton { Start = x1; End = y1 }
-let i2 = Singleton { Start = x2; End = y2 }
-let i3 = Singleton { Start = x3; End = y3 }
-let i4 = Singleton { Start = x4; End = y4 }
-let i5 = Singleton { Start = x5; End = y5 }
+let meet = Interval.intersection i1 i2 // [3, 5)
+let join = Interval.union i1 i2 // (1, 7]
+let rest = Interval.difference (closed 1 10) (closedOpen 3 5) // [1, 3) ∪ [5, 10]
+let span = Interval.hull (closed 1 2 + opened 4 5) // [1, 5)
+let isInside = Interval.isSubsetOf (closed 2 3) (closed 1 5) // true
+let shifted = Interval.mapMonotonic ((+) 10) (closedOpen 1 2) // [11, 12)
 ```
 
-### Intersection
+The same operations are available as operators, and `Array.sum` works because `∅` is the identity of union:
 
 ```fsharp
-// (1, 5) ∩ [3, 7]  →  [3, 5)
-intersection i1 i2
-// Singleton { Start = { Value = 3; Kind = Included }; End = { Value = 5; Kind = Excluded } }
-
-// [3, 7] ∩ (6, 8]  →  (6, 7]
-intersection i2 i3
-// Singleton { Start = { Value = 6; Kind = Excluded }; End = { Value = 7; Kind = Included } }
-
-// Disjoint intervals → Empty
-intersection i1 i3
-// Empty
+let viaOperators = (i1 + i2) * closed 2 4 - point 3
+let total = Array.sum [| i1; i2 |]
+let all = Interval.unions [| i1; i2 |]
+let common = Interval.intersections i1 [| i2 |]
 ```
 
-### Union
+Touching follows set semantics, which depends on the boundaries:
 
 ```fsharp
-// (1, 5) ∪ [3, 7]  →  (1, 7]
-union i1 i2
-// Singleton { Start = { Value = 1; Kind = Excluded }; End = { Value = 7; Kind = Included } }
-
-// [3, 7] ∪ (6, 8]  →  [3, 8]
-union i2 i3
-
-// Disjoint union keeps both ranges
-union i1 i3
-// Union (set [ { Start = (1, Excluded); End = (5, Excluded) };
-//              { Start = (6, Excluded); End = (8, Included) } ])
+let connected = Interval.union (closedOpen 1 3) (closed 3 5) // [1, 5]
+let gapAtThree = Interval.union (closedOpen 1 3) (openClosed 3 5) // [1, 3) ∪ (3, 5]
+let sharedPoint = Interval.intersection (closed 1 3) (closed 3 5) // [3, 3]
 ```
 
-### Merge
-
-`merge` takes a list of `BoundedInterval` and collapses overlapping ranges into a single `Interval`:
-
-```fsharp
-let boundaries = [
-    { Start = x1; End = y1 }
-    { Start = x2; End = y2 }
-    { Start = x3; End = y3 }
-    { Start = x4; End = y4 }
-    { Start = x5; End = y5 }
-]
-
-merge boundaries
-// Union (set [ { Start = (1, Excluded); End = (10, Included) };
-//              { Start = (11, Included); End = (12, Included) } ])
-```
-
-### Relationships
-
-`relate a b` returns the Allen relation of `a` to `b`:
-
-```fsharp
-relate i1 i2   // Overlaps
-relate i2 i3   // Overlaps
-relate i1 i3   // Before
-relate i3 i4   // Starts
-relate i5 i4   // After
-```
-
-The full set of relations is:
-
-```
-After · Before · Contains · During · Equals
-Finishes · FinishedBy · Meets · MetBy
-Overlaps · OverlappedBy · Starts · StartedBy
-```
-
-### Invert
-
-Every relation has an inverse. `invert` is an involution, applying it twice returns the original:
-
-```fsharp
-invert Before          // After
-invert Starts          // StartedBy
-invert (invert Meets)  // Meets
-```
+Values are treated as a dense order, so `[1, 2]` and `[3, 4]` over integers stay separate.
 
 ---
 
-## Error model
+## Allen's relations
 
-All validating constructors return `Result<_, IntervalError>`:
-
-```fsharp
-type IntervalError =
-    | InvalidBoundaries of reason: string
-    | InvalidArgument of errorMessage: string
-```
-
-Every case carries a `Description` member suitable for logging or surfacing to users:
+The thirteen relations are defined between connected intervals:
 
 ```fsharp
-match BoundedInterval.TryCreate(endB, startB) with
-| Ok _ -> ()
-| Error err -> printfn "construction failed: %s" err.Description
+let pair lower upper =
+    match BoundedInterval.TryCreate(inc lower, inc upper) with
+    | Ok interval -> interval
+    | Error error -> invalidOp error.Description
+
+let first, second = pair 1 4, pair 3 6
+
+let relation = BoundedInterval.relate first second // Overlaps
+let inverse = Relation.invert relation // OverlappedBy
+let isOverlap = BoundedInterval.overlaps first second // true
+let lifted = Interval.tryRelate (closed 1 4) (closed 3 6) // Some Overlaps
+let undefined = Interval.tryRelate (closed 1 2 + closed 4 5) (closed 3 6) // None
 ```
 
-The library does **not** use exceptions for business logic.
+`relate` is decided from endpoints alone:
+
+- Intervals that touch at a value held by at least one side **meet**: `[1, 3]` and `[3, 5]`, or `[1, 3)` and `[3, 5]`.
+- Two excluded endpoints leave a gap, so `(1, 3)` is **before** `(3, 5)`.
+- A point follows the same rules: `[3, 3]` **starts** `[3, 5]`, and `[1, 3]` is **finished by** `[3, 3]`.
+
+---
+
+## Relation sets and composition
+
+A `RelationSet` expresses that any of several relations may hold:
+
+```fsharp
+let overlapping = RelationSet.ofArray [| Overlaps; OverlappedBy |]
+let anyOverlap = RelationSet.holds overlapping first second // true
+let concurrent = RelationSet.holds RelationSet.concur first second // true
+let notConcurrent = RelationSet.complement RelationSet.concur = RelationSet.disjoint // true
+```
+
+Composition infers what can hold from `a` to `c`, given `a` to `b` and `b` to `c`:
+
+```fsharp
+let inferred = RelationSet.composeRelations Before Before // only Before
+let general = RelationSet.compose overlapping (RelationSet.singleton Before)
+let members = RelationSet.toArray inferred
+```
+
+**Soundness domain.** Composition describes proper intervals (lower value strictly below upper) with one uniform boundary shape, such as all closed or all half-open. It does not hold across mixed boundary kinds. For example `[1, 3]` meets `[3, 5]` and `[3, 5]` overlaps `(3, 6]`, so composition gives only `Before`, yet `[1, 3]` meets `(3, 6]`.
+
+---
+
+## Laws
+
+Under the canonical equality, with `contains` as the observation of what an interval means:
+
+- `∪` and `∩` are commutative, associative and idempotent, absorb each other and distribute over each other, with `∅` as the identity of `∪` and the zero of `∩`. There is no top element because intervals are bounded.
+- `contains x (a ∪ b) = contains x a || contains x b`, and likewise `∩` with `&&`, and `difference` with `&& not`.
+- `a ⊆ b ⇔ a ∩ b = a ⇔ a ∪ b = b`.
+- `(a − b) ∪ (a ∩ b) = a` and `(a − b) ∩ b = ∅`.
+- `relate a b = invert (relate b a)`, and exactly one relation holds for any pair.
+- `RelationSet` is a boolean algebra. `compose` is associative, has `Equals` as identity, distributes over union and satisfies `converse (compose r s) = compose (converse s) (converse r)`.
+
+All of these are checked by FsCheck properties in `tests/Interval.Tests`.
+
+---
+
+## Performance notes
+
+- `union`, `intersection` and `difference` are linear in the number of pieces. `contains` is logarithmic. `ofArray` is `O(n log n)`.
+- `ofArray` sorts in parallel from 10,000 items, and `intersections` reduces in parallel from 256 inputs. A value type's comparison must therefore be safe to call from several threads, which holds for ordinary comparison implementations.
+- `Interval.mapMonotonic` runs sequentially, because it calls your function.
+
