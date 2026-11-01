@@ -69,6 +69,23 @@
         let
           dotnet = pkgs.dotnet-sdk_10;
           version = readXmlElement "Version" ./Directory.Build.props;
+          source = pkgs.lib.cleanSourceWith {
+            src = ./.;
+            filter =
+              path: type:
+              let
+                name = baseNameOf path;
+              in
+              !(
+                type == "directory"
+                && builtins.elem name [
+                  ".config"
+                  ".tools"
+                  "coverage"
+                  "out"
+                ]
+              );
+          };
         in
         {
           # This sets `pkgs` to a nixpkgs with allowUnfree option set.
@@ -82,7 +99,7 @@
             default = pkgs.buildDotnetModule {
               inherit version;
               pname = "interval.fs";
-              src = ./.;
+              src = source;
               projectFile = "src/Interval/Interval.fsproj";
               nugetDeps = ./deps.json;
               dotnet-sdk = dotnet;

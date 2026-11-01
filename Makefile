@@ -56,7 +56,7 @@ fmt:
 .PHONY: docs
 docs: $(DOCS_OUTPUT)/index.html
 
-$(DOCS_OUTPUT)/index.html: docfx.json dotnet-tools.json $(wildcard docs/*)
+$(DOCS_OUTPUT)/index.html: docfx.json .config/dotnet-tools.json $(wildcard docs/*)
 	$(DOTNET) tool restore
 	$(RM) -r $(DOCS_OUTPUT)
 	$(DOTNET) docfx docfx.json
