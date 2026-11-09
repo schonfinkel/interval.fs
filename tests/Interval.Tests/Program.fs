@@ -6,12 +6,11 @@ open Expecto
 let tests =
     testList
         "Tests"
-        [ Interval.Tests.TryCreate.unitTests
-          Interval.Tests.Intersection.unitTests
-          Interval.Tests.Union.unitTests
-          Interval.Tests.Merge.unitTests
-          Interval.Tests.Relate.unitTests
-          Interval.Tests.Properties.propertyTests ]
+        [ Interval.Tests.Examples.tests
+          Interval.Tests.Laws.tests
+          Interval.Tests.RelationLaws.tests
+          Interval.Tests.Regressions.tests
+          Interval.Tests.GeneratorChecks.tests ]
 
 [<EntryPoint>]
 let main argv = runTestsWithCLIArgs [] argv tests

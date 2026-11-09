@@ -24,6 +24,32 @@
       nixpkgs,
       ...
     }:
+    let
+      readXmlElement =
+        element: file:
+        let
+          contents = builtins.readFile file;
+          opening = "<${element}>";
+          closing = "</${element}>";
+          openingParts = nixpkgs.lib.splitString opening contents;
+          closingParts = nixpkgs.lib.splitString closing contents;
+        in
+        if builtins.length openingParts != 2 || builtins.length closingParts != 2 then
+          throw "readXmlElement: expected exactly one ${opening} and ${closing} in ${toString file}"
+        else
+          let
+            valueParts = nixpkgs.lib.splitString closing (builtins.elemAt openingParts 1);
+            valueMatch =
+              if builtins.length valueParts == 2 then
+                builtins.match "[[:space:]]*([^[:space:]<]+)[[:space:]]*" (builtins.elemAt valueParts 0)
+              else
+                null;
+          in
+          if valueMatch == null then
+            throw "readXmlElement: ${opening} in ${toString file} must contain one non-empty value"
+          else
+            builtins.head valueMatch;
+    in
     flake-parts.lib.mkFlake { inherit inputs; } {
       imports = [
         inputs.devenv.flakeModule
@@ -42,7 +68,24 @@
         }:
         let
           dotnet = pkgs.dotnet-sdk_10;
-          version = "1.0.1";
+          version = readXmlElement "Version" ./Directory.Build.props;
+          source = pkgs.lib.cleanSourceWith {
+            src = ./.;
+            filter =
+              path: type:
+              let
+                name = baseNameOf path;
+              in
+              !(
+                type == "directory"
+                && builtins.elem name [
+                  ".config"
+                  ".tools"
+                  "coverage"
+                  "out"
+                ]
+              );
+          };
         in
         {
           # This sets `pkgs` to a nixpkgs with allowUnfree option set.
@@ -56,7 +99,7 @@
             default = pkgs.buildDotnetModule {
               inherit version;
               pname = "interval.fs";
-              src = ./.;
+              src = source;
               projectFile = "src/Interval/Interval.fsproj";
               nugetDeps = ./deps.json;
               dotnet-sdk = dotnet;

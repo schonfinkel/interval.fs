@@ -4,42 +4,91 @@ on:
   push:
     branches: [ "master" ]
     paths:
+      - '.github/**'
+      - 'docs/**'
+      - 'scripts/**'
       - 'src/**'
       - 'tests/**'
-      - '.github/**'
+      - 'deps.json'
+      - 'Directory.Build.props'
+      - 'docfx.json'
+      - '.config/dotnet-tools.json'
       - 'flake.nix'
       - 'flake.lock'
+      - 'global.json'
+      - 'Makefile'
+      - 'nuget.config'
+      - 'README.md'
   pull_request:
     paths:
+      - '.github/**'
+      - 'docs/**'
+      - 'scripts/**'
       - 'src/**'
       - 'tests/**'
-      - '.github/**'
+      - 'deps.json'
+      - 'Directory.Build.props'
+      - 'docfx.json'
+      - '.config/dotnet-tools.json'
       - 'flake.nix'
       - 'flake.lock'
+      - 'global.json'
+      - 'Makefile'
+      - 'nuget.config'
+      - 'README.md'
 
 jobs:
   build:
 
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: read
+      actions: write
+
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         token: ${{ github.token }}
 
-    - uses: DeterminateSystems/nix-installer-action@main
-    - uses: DeterminateSystems/magic-nix-cache-action@main
+    - name: Install Nix
+      uses: cachix/install-nix-action@v31
+      with:
+        # Mostly to avoid GitHub rate limiting
+        # keep-env-derivations/keep-outputs protect the ci shell's flake inputs
+        # and shell derivation from the pre-save garbage collection below.
+        extra_nix_config: |
+          access-tokens = github.com=${{ github.token }}
+          keep-env-derivations = true
+          keep-outputs = true
+
+    - name: Restore and save Nix store
+      uses: nix-community/cache-nix-action@v7
+      with:
+        primary-key: nix-${{ runner.os }}-${{ hashFiles('flake.nix', 'flake.lock') }}
+        restore-prefixes-first-match: nix-${{ runner.os }}-
+        gc-max-store-size-linux: 1G
+        purge: true
+        purge-prefixes: nix-${{ runner.os }}-
+        purge-created: 0
+        purge-last-accessed: P1DT12H
+        purge-primary-key: never
+
+    # devenv's own binary cache. Without it the shell is built from source on every cold runner.
+    - uses: cachix/cachix-action@v17
+      with:
+        name: devenv
 
     - name: Build
       run: nix build
 
     - name: Run testing suite with coverage
-      run: |
-        nix develop .#ci --impure -c \
-          dotnet test \
-            /p:CollectCoverage=true \
-            /p:CoverletOutputFormat=cobertura \
-            /p:CoverletOutput=${GITHUB_WORKSPACE}/coverage/
+      run: nix develop .#ci --impure -c make coverage
+
+    # Documentation is the GitHub Pages site. Build it for pull requests too, so broken docs are
+    # caught before merge; only master uploads and deploys the result below.
+    - name: Build documentation
+      run: nix develop .#ci --impure -c make docs
 
     - name: Code coverage summary
       uses: irongut/CodeCoverageSummary@v1.3.0
@@ -51,7 +100,7 @@ jobs:
         thresholds: '60 80'
 
     - name: Publish coverage to job summary
-      run: cat code-coverage-results.md >> $GITHUB_STEP_SUMMARY
+      run: cat code-coverage-results.md >> "$GITHUB_STEP_SUMMARY"
 
     - name: Extract coverage percentage and color
       id: coverage
@@ -63,12 +112,8 @@ jobs:
           else if (p < 80) print "yellow"
           else print "green"
         }')
-        echo "percent=$percent" >> $GITHUB_OUTPUT
-        echo "color=$color" >> $GITHUB_OUTPUT
-
-    - name: Prepare badges directory
-      if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-      run: mkdir -p badges
+        echo "percent=$percent" >> "$GITHUB_OUTPUT"
+        echo "color=$color" >> "$GITHUB_OUTPUT"
 
     - name: Generate coverage badge
       if: github.event_name == 'push' && github.ref == 'refs/heads/master'
@@ -77,13 +122,13 @@ jobs:
         label: coverage
         status: ${{ steps.coverage.outputs.percent }}%
         color: ${{ steps.coverage.outputs.color }}
-        output: badges/coverage.svg
+        output: out/docs/coverage.svg
 
     - name: Upload Pages artifact
       if: github.event_name == 'push' && github.ref == 'refs/heads/master'
       uses: actions/upload-pages-artifact@v5
       with:
-        path: ./badges
+        path: ./out/docs
 
   deploy:
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'

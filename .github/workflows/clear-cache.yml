@@ -1,61 +1,85 @@
-name: "[Cron] Clear cache"
+name: "[CI] Clear cache"
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "*/15 2-3 * * *"
+  workflow_run:
+    workflows: ["[Nix] Build & Tests"]
+    types: [completed]
+    branches: [master]
   pull_request:
     types:
       - closed
 
 permissions:
   actions: write
+  contents: read
+  pull-requests: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  GH_REPO: ${{ github.repository }}
 
 jobs:
-  # https://docs.github.com/en/actions/using-workflows/caching-dependencies-to-speed-up-workflows#force-deleting-cache-entries
-  pr-cleanup:
-    if: ${{ github.event_name == 'pull_request' && github.event.action == 'closed' }}
+  # Sweeps every merged PR rather than only the one that just landed, so a master run that failed
+  # and later passed on a re-run still gets its PR's caches removed.
+  merged-pr-cleanup:
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
-      - name: Closed PR Cleanup
+      - name: Delete caches of merged PRs whose merge commit passed on master
         run: |
-          gh extension install actions/gh-actions-cache
+          caches="$(gh cache list --limit 1000 --json id,ref \
+            --jq '.[] | select(.ref | test("^refs/pull/[0-9]+/merge$")) | "\(.ref) \(.id)"')"
 
-          echo "Fetching list of cache key"
-          cacheKeysForPR=$(gh actions-cache list -R $REPO -B $BRANCH -L 100 | cut -f 1 )
+          for ref in $(printf '%s\n' "$caches" | cut -d' ' -f1 | sort -u); do
+            number="${ref#refs/pull/}"
+            number="${number%/merge}"
 
-          ## Setting this to not fail the workflow while deleting cache keys.
-          set +e
-          echo "Deleting caches..."
-          for cacheKey in $cacheKeysForPR
-          do
-              gh actions-cache delete $cacheKey -R $REPO -B $BRANCH --confirm
+            sha="$(gh pr view "$number" --json mergedAt,mergeCommit \
+              --jq 'select(.mergedAt != null) | .mergeCommit.oid')"
+            if [[ -z "$sha" ]]; then
+              continue
+            fi
+
+            green="$(gh api --method GET \
+              "repos/${GH_REPO}/actions/workflows/build.yml/runs" \
+              -f event=push \
+              -f head_sha="$sha" \
+              -f status=success \
+              -f per_page=1 \
+              --jq '.total_count > 0')"
+            if [[ "$green" != "true" ]]; then
+              echo "Keeping caches of PR #$number: $sha has no successful master run yet"
+              continue
+            fi
+
+            echo "Deleting caches of PR #$number"
+            printf '%s\n' "$caches" | awk -v ref="$ref" '$1 == ref { print $2 }' |
+              while IFS= read -r id; do
+                gh cache delete "$id"
+              done
           done
-          echo "Done"
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
-          BRANCH: refs/pull/${{ github.event.pull_request.number }}/merge
 
-  scheduled-cleanup:
-    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+  # No master run follows a PR closed without merging, so its caches can go immediately.
+  closed-pr-cleanup:
+    if: github.event_name == 'pull_request' && github.event.pull_request.merged == false
     runs-on: ubuntu-latest
     steps:
-      - name: Clear Cache
-        uses: actions/github-script@v7
-        with:
-          script: |
-            console.log("About to clear")
-            const caches = await github.rest.actions.getActionsCacheList({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-            })
-            for (const cache of caches.data.actions_caches) {
-              console.log(cache)
-              github.rest.actions.deleteActionsCacheById({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                cache_id: cache.id,
-              })
-            }
-            console.log("Clear completed")
+      - name: Delete caches of the closed PR
+        env:
+          REF: refs/pull/${{ github.event.pull_request.number }}/merge
+        run: |
+          gh cache list --ref "$REF" --limit 1000 --json id --jq '.[].id' |
+            while IFS= read -r id; do
+              gh cache delete "$id"
+            done
+
+  manual-cleanup:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clear every cache
+        run: gh cache delete --all

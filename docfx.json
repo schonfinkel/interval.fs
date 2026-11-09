@@ -1,0 +1,23 @@
+{
+  "$schema": "https://raw.githubusercontent.com/dotnet/docfx/main/schemas/docfx.schema.json",
+  "build": {
+    "content": [
+      {
+        "src": "docs",
+        "files": [
+          "**/*.md",
+          "toc.yml"
+        ]
+      }
+    ],
+    "dest": "out/docs",
+    "globalMetadata": {
+      "_appName": "interval.fs",
+      "_appTitle": "interval.fs",
+      "_enableSearch": true
+    },
+    "sitemap": {
+      "baseUrl": "https://schonfinkel.github.io/interval.fs/"
+    }
+  }
+}
