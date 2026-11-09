@@ -45,6 +45,11 @@
     "hash": "sha256-0xYTYX4935Ejm7yUqMWHhJtCNuj4oqK6Weojl6FIfHo="
   },
   {
+    "pname": "Microsoft.ApplicationInsights",
+    "version": "2.23.0",
+    "hash": "sha256-5sf3bg7CZZjHseK+F3foOchEhmVeioePxMZVvS6Rjb0="
+  },
+  {
     "pname": "Microsoft.Bcl.AsyncInterfaces",
     "version": "1.1.0",
     "hash": "sha256-QYVojfqSZKbF8P6D/aacfxfumMaRUD9SEEQbzw73Bbc="
@@ -135,9 +140,39 @@
     "hash": "sha256-/1MSqQk5mBfbireHE56TXAFtZcCnUguJzCbXdcWfTac="
   },
   {
+    "pname": "Microsoft.Testing.Extensions.Telemetry",
+    "version": "2.3.3",
+    "hash": "sha256-Doo1IAwnDlbqyg2Q6p82RuYYAQ7VkJnY4Pn9MDZqCOs="
+  },
+  {
+    "pname": "Microsoft.Testing.Extensions.TrxReport.Abstractions",
+    "version": "2.3.3",
+    "hash": "sha256-YAgHS3B0LwRvIHer285QuSrYCO5FcSpAXazL5pNHB4Y="
+  },
+  {
+    "pname": "Microsoft.Testing.Extensions.VSTestBridge",
+    "version": "2.3.3",
+    "hash": "sha256-/UlwUEIwQyNZxdD0jNcV34ZJ20aLe2kWQTvH3LOIHes="
+  },
+  {
+    "pname": "Microsoft.Testing.Platform",
+    "version": "2.3.3",
+    "hash": "sha256-sH0AyrX0ny0JgVkgRLrvPXIKB55pQWAcd5AERYSzF0o="
+  },
+  {
+    "pname": "Microsoft.Testing.Platform.MSBuild",
+    "version": "2.3.3",
+    "hash": "sha256-JeU3+8OebODA2k6KSorm2P7piuQZRdS1hhJKAwdfSJA="
+  },
+  {
     "pname": "Microsoft.TestPlatform.ObjectModel",
     "version": "18.11.0",
     "hash": "sha256-0GvcoaIgSzFC852Y45MaAeC8X1fm9TYZefnCo5gV9Xg="
+  },
+  {
+    "pname": "Microsoft.TestPlatform.ObjectModel",
+    "version": "18.4.0",
+    "hash": "sha256-ERL2goDaM0vUElW25DM/5lI2WplE5E6g9mhTegY0bC8="
   },
   {
     "pname": "Microsoft.TestPlatform.TestHost",
@@ -176,7 +211,7 @@
   },
   {
     "pname": "YoloDev.Expecto.TestSdk",
-    "version": "1.0.0",
-    "hash": "sha256-C4tl7612MANzH1zCr3umQmvzL9FHAAmNfpm5lJUsu7Q="
+    "version": "0.16.1",
+    "hash": "sha256-ldR4JFxgRaH9k+Lc3MvqTCfOLMnphC13DhsQm+0lJh4="
   }
 ]
